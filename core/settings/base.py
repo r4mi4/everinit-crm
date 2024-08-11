@@ -7,7 +7,7 @@ This file contains settings that are common across all environments (development
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from django.core.exceptions import ImproperlyConfigured
+from core.utils.env_variable import get_env_variable
 
 # Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -15,31 +15,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # Load environment variables from a .env file if it exists
 env_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=env_path)
-
-
-# Function to get environment variables and handle missing variables
-def get_env_variable(var_name, default_value=None, required=True):
-    """
-    Get the environment variable or return exception.
-
-    Args:
-        var_name (str): Name of the environment variable
-        default_value (any): Default value if variable is not set
-        required (bool): Whether the variable is required
-
-    Returns:
-        str: Value of the environment variable
-
-    Raises:
-        ImproperlyConfigured: If the variable is required but not set
-    """
-    value = os.getenv(var_name)
-    if value is None:
-        if required:
-            raise ImproperlyConfigured(f"Set the {var_name} environment variable")
-        return default_value
-    return value
-
 
 # Secret key for Django security. Should be kept secret in production.
 SECRET_KEY = get_env_variable("SECRET_KEY", required=True)
@@ -51,23 +26,27 @@ DEBUG = get_env_variable("DEBUG", "False") == "True"
 ALLOWED_HOSTS = get_env_variable("ALLOWED_HOSTS", "").split(",")
 
 # Installed apps include Django's default apps and custom apps
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
 
-    # Our custom app
+
+INTERNAL_APPS = [
     'apps.accounts.apps.AccountsConfig',
 ]
+INSTALLED_APPS = [
+                     'django.contrib.admin',
+                     'django.contrib.auth',
+                     'django.contrib.contenttypes',
+                     'django.contrib.sessions',
+                     'django.contrib.messages',
+                     'django.contrib.staticfiles',
+                 ] + INTERNAL_APPS
+
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
 # Middleware configuration
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',  # Language Management Middleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -134,6 +113,7 @@ TIME_ZONE = 'Asia/Tehran'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Load environment-specific settings
@@ -147,3 +127,26 @@ else:
         from .production import *  # Load production settings
     except ImportError:
         pass
+
+# Directory where the applications are located
+APPS_DIR = os.path.join(BASE_DIR, 'apps')
+
+APPS_TRANSLATION_NAME = 'locale'
+
+# Filter to include only directories that contain 'apps.py', indicating a Django app
+APPS = [
+    name for name in os.listdir(APPS_DIR)
+    if os.path.isdir(os.path.join(APPS_DIR, name)) and  # Ensure it's a directory
+       os.path.exists(os.path.join(APPS_DIR, name, 'apps.py'))  # Check if 'apps.py' exists
+]
+# Dynamically generate LOCALE_PATHS
+LOCALE_PATHS = []
+for app_name in APPS:
+    locale_path = os.path.join(APPS_DIR, app_name, 'locale')
+
+    # Create the 'locale' directory if it doesn't exist
+    if not os.path.isdir(locale_path):
+        os.makedirs(locale_path)
+
+        # Add to LOCALE_PATHS only if 'locale' directory exists or was successfully created
+    LOCALE_PATHS.append(locale_path)
