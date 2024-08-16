@@ -6,15 +6,15 @@ from .models import (
     ContactInfo,
     ContactNumber,
     EntityType,
-    EntityUsageLog,
     CustomUser,
     Tag,
     EntityRelationship
 )
+from reversion.admin import VersionAdmin
 
 
 @admin.register(Entity)
-class EntityAdmin(admin.ModelAdmin):
+class EntityAdmin(VersionAdmin):
     """Admin interface for managing Entity records."""
     list_display = ('name', 'entity_type', 'date_joined')
     search_fields = ('name', 'entity_type__name')
@@ -25,14 +25,14 @@ class EntityAdmin(admin.ModelAdmin):
 
 
 @admin.register(Role)
-class RoleAdmin(admin.ModelAdmin):
+class RoleAdmin(VersionAdmin):
     """Admin interface for managing Role records."""
     list_display = ('code', 'name', 'description')
     search_fields = ('code', 'name')
 
 
 @admin.register(RoleAssignment)
-class RoleAssignmentAdmin(admin.ModelAdmin):
+class RoleAssignmentAdmin(VersionAdmin):
     """Admin interface for managing RoleAssignment records."""
     list_display = ('entity', 'role', 'assigned_at')
     list_filter = ('role', 'entity')
@@ -42,7 +42,7 @@ class RoleAssignmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(ContactInfo)
-class ContactInfoAdmin(admin.ModelAdmin):
+class ContactInfoAdmin(VersionAdmin):
     """Admin interface for managing ContactInfo records."""
     list_display = ('email', 'address')
     search_fields = ('email', 'phone_numbers__phone')
@@ -50,27 +50,17 @@ class ContactInfoAdmin(admin.ModelAdmin):
 
 
 @admin.register(ContactNumber)
-class ContactNumberAdmin(admin.ModelAdmin):
+class ContactNumberAdmin(VersionAdmin):
     """Admin interface for managing ContactNumber records."""
     list_display = ('phone',)
     search_fields = ('phone',)
 
 
 @admin.register(EntityType)
-class EntityTypeAdmin(admin.ModelAdmin):
+class EntityTypeAdmin(VersionAdmin):
     """Admin interface for managing EntityType records."""
     list_display = ('name',)
     search_fields = ('name',)
-
-
-@admin.register(EntityUsageLog)
-class EntityUsageLogAdmin(admin.ModelAdmin):
-    """Admin interface for managing EntityUsageLog records."""
-    list_display = ('user', 'content_type', 'object_id', 'action', 'timestamp', 'entity')
-    list_filter = ('content_type', 'user', 'entity', 'timestamp')
-    search_fields = ('action', 'entity__name', 'user__username')
-    readonly_fields = ('timestamp',)
-    raw_id_fields = ('entity', 'user', 'content_type')
 
 
 @admin.register(CustomUser)
@@ -83,7 +73,7 @@ class CustomUserAdmin(admin.ModelAdmin):
 
 
 @admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
+class TagAdmin(VersionAdmin):
     """Admin interface for managing Tag records."""
     list_display = ('name',)
     search_fields = ('name',)

@@ -3,13 +3,11 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from .constants import RESERVED_ROLES
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 
-from ..common.models import AuditModel
+from ..common.models import ComprehensiveModel, TrackableModel
 
 
-class Role(models.Model):
+class Role(ComprehensiveModel):
     """
     Model representing a user role in the system.
     """
@@ -79,12 +77,13 @@ class Role(models.Model):
         Raises:
             ValidationError: If a reserved role's code is being changed.
         """
-        if self.pk:  # If the role already exists
-            original_code = Role.objects.values_list('code', flat=True).get(pk=self.pk)
-            if original_code != self.code and original_code in RESERVED_ROLES:
-                raise ValidationError(
-                    _("The code '%(code)s' is reserved and cannot be changed.") % {'code': self.code}
-                )
+        try:
+            original_role = Role.objects.get(pk=self.pk)
+            if original_role.code != self.code and original_role.code in RESERVED_ROLES:
+                raise ValidationError(_("The code '%(code)s' is reserved and cannot be changed.") % {'code': self.code})
+        except Role.DoesNotExist:
+            # Log an error or handle the unexpected situation
+            pass
 
     def _check_reserved_deletion(self):
         """
@@ -98,7 +97,7 @@ class Role(models.Model):
             )
 
 
-class RoleAssignment(models.Model):
+class RoleAssignment(TrackableModel):
     """
     Model to assign roles to entities.
     """
@@ -124,7 +123,7 @@ class RoleAssignment(models.Model):
         return f"{self.entity.name} has role {self.role.name}"
 
 
-class ContactNumber(models.Model):
+class ContactNumber(ComprehensiveModel):
     """
     Model to store phone numbers associated with a contact.
     """
@@ -142,7 +141,7 @@ class ContactNumber(models.Model):
         return self.phone
 
 
-class ContactInfo(models.Model):
+class ContactInfo(ComprehensiveModel):
     """
     Model to store contact information of an Entity.
     """
@@ -182,7 +181,7 @@ class ContactInfo(models.Model):
         return f"{self.email or 'No Email'} - {self.phone_numbers.first() or 'No Phone'}"
 
 
-class RelationshipType(models.Model):
+class RelationshipType(ComprehensiveModel):
     """
     Model representing the type of relationship between entities.
     """
@@ -208,7 +207,7 @@ class RelationshipType(models.Model):
         return self.name
 
 
-class EntityRelationship(models.Model):
+class EntityRelationship(TrackableModel):
     """
     Model representing a relationship between two entities.
     """
@@ -247,7 +246,7 @@ class EntityRelationship(models.Model):
         return f"{self.from_entity.name} -> {self.to_entity.name} ({self.relationship_type.name})"
 
 
-class Tag(models.Model):
+class Tag(ComprehensiveModel):
     """
     Model representing a tag used to categorize entities.
     """
@@ -267,7 +266,7 @@ class Tag(models.Model):
         return self.name
 
 
-class EntityType(models.Model):
+class EntityType(ComprehensiveModel):
     """
     Model to store the type of entity (e.g., Person, Company).
 
@@ -289,7 +288,7 @@ class EntityType(models.Model):
         return self.name
 
 
-class Entity(AuditModel):
+class Entity(ComprehensiveModel):
     """
     Base model to store information about an entity (e.g., Person, Company).
     """
@@ -336,11 +335,6 @@ class Entity(AuditModel):
         verbose_name=_("Roles"),
         help_text=_("Roles assigned to the entity.")
     )
-    active = models.BooleanField(
-        default=True,
-        verbose_name=_("Active"),
-        help_text=_("Indicates whether the entity is active.")
-    )
     tags = models.ManyToManyField(
         'Tag',
         blank=True,
@@ -372,59 +366,3 @@ class CustomUser(AbstractUser):
     def __str__(self):
         return f"{self.username} ({self.email})"
 
-
-class EntityUsageLog(models.Model):
-    """
-    Model to log usage and activities of entities.
-    """
-    user = models.ForeignKey(
-        'CustomUser',
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        verbose_name=_("User"),
-        help_text=_("User who performed the action.")
-    )
-    content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.CASCADE,
-        verbose_name=_("Content Type"),
-        help_text=_("The type of the content object.")
-    )
-    object_id = models.PositiveIntegerField(
-        verbose_name=_("Object ID"),
-        help_text=_("ID of the related object.")
-    )
-    content_object = GenericForeignKey('content_type', 'object_id')
-    action = models.CharField(
-        max_length=255,
-        verbose_name=_("Action"),
-        help_text=_("Description of the action performed.")
-    )
-    timestamp = models.DateTimeField(
-        verbose_name=_("Timestamp"),
-        help_text=_("The time when the action was performed.")
-    )
-    entity = models.ForeignKey(
-        'Entity',
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        verbose_name=_("Entity"),
-        help_text=_("The entity related to the action.")
-    )
-    context = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        verbose_name=_("Context"),
-        help_text=_("Additional context for the action.")
-    )
-
-    class Meta:
-        verbose_name = _("Entity Usage Log")
-        verbose_name_plural = _("Entity Usage Logs")
-        ordering = ['-timestamp']
-
-    def __str__(self):
-        return f"{self.content_type.app_label}.{self.content_type.model} {self.object_id} - {self.action} at {self.timestamp}"

@@ -30,6 +30,7 @@ ALLOWED_HOSTS = get_env_variable("ALLOWED_HOSTS", "").split(",")
 
 INTERNAL_APPS = [
     'apps.accounts.apps.AccountsConfig',
+    'apps.stockroom.apps.StockroomConfig',
 ]
 INSTALLED_APPS = [
                      'django.contrib.admin',
@@ -38,6 +39,8 @@ INSTALLED_APPS = [
                      'django.contrib.sessions',
                      'django.contrib.messages',
                      'django.contrib.staticfiles',
+                     'reversion',
+
                  ] + INTERNAL_APPS
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
@@ -52,6 +55,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    # our custom middleware
+    'core.middleware.user_tracking.UserTrackingMiddleware',
+    'core.middleware.reversion_middleware.ReversionMiddleware',
 ]
 
 # Database configuration. Default to SQLite for development.
@@ -116,6 +123,7 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
 # Load environment-specific settings
 if DEBUG:
     try:
@@ -128,6 +136,7 @@ else:
     except ImportError:
         pass
 
+# REVIEW: Find a better solution for handling directories in the 'makemessages' command
 # Directory where the applications are located
 APPS_DIR = os.path.join(BASE_DIR, 'apps')
 
